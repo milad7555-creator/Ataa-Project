@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Http\Requests\SignUpRequest;
 use App\Http\Requests\SignInRequest;
+use App\Http\Requests\UpdateProfileRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -106,56 +107,36 @@ public function signUp(SignUpRequest $request)
      * @param SignInRequest $request - Form Request class that validates signin data
      * @return \Illuminate\Http\JsonResponse
      */
-public function signIn(SignInRequest $request)
+public function signin(SignInRequest $request)
 {
-    try {
-        $validated = $request->validated();
+    // Validate input
+      $validated = $request->validated();
 
-        // Determine login method
-        $credentials = [];
+    // Determine login field
+    $loginValue = $request->email ?? $request->phone;
+    $loginField = $request->email ? 'email' : 'phone';
 
-        if (!empty($validated['Email'])) {
-            $credentials['email'] = $validated['Email'];
-        }
-
-        if (!empty($validated['Phone'])) {
-            $credentials['phone'] = $validated['Phone'];
-        }
-
-        $credentials['password'] = $validated['password'];
-
-        // Attempt login
-        if (!Auth::attempt($credentials)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid email/phone or password.',
-            ], 401);
-        }
-
-        // Get user
-        $user = User::where('email', $validated['Email'] ?? null)
-            ->orWhere('phone', $validated['Phone'] ?? null)
-            ->firstOrFail();
-
-        // Create token
-        $token = $user->createToken('auth_token')->plainTextToken;
-
+    // Attempt login
+    if (!Auth::attempt([$loginField => $loginValue, 'password' => $request->password])) {
         return response()->json([
-            'success' => true,
-            'message' => 'Login successful.',
-            'token'   => $token,
-            
-        ], 200);
-
-    } catch (\Exception $e) {
-        Log::error('Sign in failed: ' . $e->getMessage());
-
-        return response()->json([
-            'success' => false,
-            'message' => 'An error occurred while signing in',
-        ], 500);
+            'message' => 'Invalid email/phone or password',
+        ], 401);
     }
+
+    // Get user
+    $user = User::where($loginField, $loginValue)->firstOrFail();
+
+    // Create token
+    $token = $user->createToken('auth_Token')->plainTextToken;
+
+    return response()->json([
+        'message' => 'Login Successful',
+        'user'    => $user,
+        'token'   => $token
+    ], 201);
 }
+
+
 
 
 
@@ -190,5 +171,34 @@ public function signIn(SignInRequest $request)
             'user' => $request->user(),
         ], 200);
     }
+
+
+    public function updateProfile(UpdateProfileRequest $request)
+{
+    $user = $request->user();
+
+    // تحديث الحقول المسموح بها فقط
+    $data = $request->only([
+        'first_name',
+        'last_name',
+        'email',
+        'phone',
+        'address',
+    ]);
+
+    // إذا فيه باسورد جديد
+    if ($request->filled('password')) {
+        $data['password'] = bcrypt($request->password);
+    }
+
+    $user->update($data);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Profile updated successfully',
+        'user' => $user,
+    ], 200);
+}
+
 }
 
