@@ -13,6 +13,7 @@ class UniversityStudent extends Model
         'academic_year',
         'university_id_photo',
         'support_type',
+        'required_amount',
     ];
 
     public function request()

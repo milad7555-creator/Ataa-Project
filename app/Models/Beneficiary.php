@@ -8,10 +8,10 @@ class Beneficiary extends Model
 {
     protected $fillable = [
         'full_name',
-        'mother_name',
         'address',
         'email',
         'phone',
+        'personal_picture',
     ];
 
     public function requests()

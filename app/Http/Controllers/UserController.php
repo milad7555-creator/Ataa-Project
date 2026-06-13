@@ -32,16 +32,17 @@ class UserController extends Controller
         try {
             $validatedData = $request->validated();
 
-            // Check if user already exists (safe search)
-            $existingUser = User::where(function ($query) use ($validatedData) {
-                if (!empty($validatedData['email'])) {
-                    $query->where('email', $validatedData['email']);
-                }
-
-                if (!empty($validatedData['phone'])) {
-                    $query->orWhere('phone', $validatedData['phone']);
-                }
-            })->first();
+            $query = User::query();
+            
+            if (!empty($validatedData['email'])) {
+                $query->where('email', $validatedData['email']);
+            }
+            
+            if (!empty($validatedData['phone'])) {
+                $query->orWhere('phone', $validatedData['phone']);
+            }
+            
+            $existingUser = $query->first();
 
             if ($existingUser) {
                 return response()->json([
@@ -50,30 +51,25 @@ class UserController extends Controller
                 ], 409);
             }
 
-            // Upload profile image (optional)
             if ($request->hasFile('profile_image')) {
                 $profilePath = $request->file('profile_image')->store('profile_images', 'public');
                 $validatedData['profile_image'] = $profilePath;
             }
 
-            // Upload national ID (required_without passport)
             if ($request->hasFile('national_id')) {
                 $nationalIdPath = $request->file('national_id')->store('national_ids', 'public');
                 $validatedData['national_id'] = $nationalIdPath;
             }
 
-            // Upload passport (required_without national_id)
             if ($request->hasFile('international_passport')) {
                 $passportPath = $request->file('international_passport')->store('passport_images', 'public');
                 $validatedData['international_passport'] = $passportPath;
             }
 
-            // Hash password
             $validatedData['password'] = Hash::make($validatedData['password']);
-            // Set default account status to pending
-            $validatedData['status'] = 'approved'; // 🔥 For testing, set to approved directly. Change to 'pending' in production.
 
-            // Create user
+            $validatedData['status'] = 'approved'; 
+            // 👤 إنشاء المستخدم
             $user = User::create($validatedData);
 
             return response()->json([
@@ -83,17 +79,11 @@ class UserController extends Controller
             ], 201);
         } catch (\Exception $e) {
 
-            // Cleanup uploaded files if error happens
-            if ($profilePath && Storage::disk('public')->exists($profilePath)) {
-                Storage::disk('public')->delete($profilePath);
-            }
-
-            if ($nationalIdPath && Storage::disk('public')->exists($nationalIdPath)) {
-                Storage::disk('public')->delete($nationalIdPath);
-            }
-
-            if ($passportPath && Storage::disk('public')->exists($passportPath)) {
-                Storage::disk('public')->delete($passportPath);
+            // 🧹 تنظيف الملفات المرفوعة عند حدوث خطأ
+            foreach ([$profilePath, $nationalIdPath, $passportPath] as $path) {
+                if ($path && Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
             }
 
             Log::error('Sign up failed: ' . $e->getMessage());
@@ -157,7 +147,6 @@ class UserController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Login Successful',
-            'user'    => $user,
             'token'   => $token,
         ], 200);
     }
@@ -193,33 +182,114 @@ class UserController extends Controller
         ], 200);
     }
 
-
     public function updateProfile(UpdateProfileRequest $request)
     {
         $user = $request->user();
+        $validated = $request->validated();
 
-        // تحديث الحقول المسموح بها فقط
-        $data = $request->only([
-            'first_name',
-            'last_name',
-            'email',
-            'phone',
-            'address',
-        ]);
+        $oldProfileImage = $this->normalizeStoragePath($user->profile_image);
+        $oldNationalId = $this->normalizeStoragePath($user->national_id);
+        $oldPassport = $this->normalizeStoragePath($user->international_passport);
 
-        // إذا فيه باسورد جديد
-        if ($request->filled('password')) {
-            $data['password'] = bcrypt($request->password);
+        $newProfileImagePath = null;
+        $newNationalIdPath = null;
+        $newPassportPath = null;
+
+        $debug = [
+            'has_profile_image' => $request->hasFile('profile_image'),
+            'has_national_id' => $request->hasFile('national_id'),
+            'has_international_passport' => $request->hasFile('international_passport'),
+            'old_profile_image' => $user->profile_image,
+            'old_national_id' => $user->national_id,
+            'old_passport' => $user->international_passport,
+            'old_profile_image_exists' => $oldProfileImage ? Storage::disk('public')->exists($oldProfileImage) : false,
+            'old_national_id_exists' => $oldNationalId ? Storage::disk('public')->exists($oldNationalId) : false,
+            'old_passport_exists' => $oldPassport ? Storage::disk('public')->exists($oldPassport) : false,
+        ];
+
+        if ($request->hasFile('profile_image')) {
+            $newProfileImagePath = $request->file('profile_image')->store('profile_images', 'public');
+            $validated['profile_image'] = $newProfileImagePath;
+            $debug['new_profile_image_path'] = $newProfileImagePath;
         }
 
-        $user->update($data);
+        if ($request->hasFile('national_id')) {
+            $newNationalIdPath = $request->file('national_id')->store('national_ids', 'public');
+            $validated['national_id'] = $newNationalIdPath;
+            $debug['new_national_id_path'] = $newNationalIdPath;
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Profile updated successfully',
-            'user' => $user,
-        ], 200);
+        if ($request->hasFile('international_passport')) {
+            $newPassportPath = $request->file('international_passport')->store('passport_images', 'public');
+            $validated['international_passport'] = $newPassportPath;
+            $debug['new_passport_path'] = $newPassportPath;
+        }
+
+        if (isset($validated['password']) && $validated['password']) {
+            $validated['password'] = Hash::make($validated['password']);
+        } else {
+            unset($validated['password']);
+        }
+
+        try {
+            $user->update($validated);
+
+            if ($newProfileImagePath && $oldProfileImage && Storage::disk('public')->exists($oldProfileImage)) {
+                Storage::disk('public')->delete($oldProfileImage);
+                $debug['deleted_old_profile_image'] = true;
+            }
+
+            if ($newNationalIdPath && $oldNationalId && Storage::disk('public')->exists($oldNationalId)) {
+                Storage::disk('public')->delete($oldNationalId);
+                $debug['deleted_old_national_id'] = true;
+            }
+
+            if ($newPassportPath && $oldPassport && Storage::disk('public')->exists($oldPassport)) {
+                Storage::disk('public')->delete($oldPassport);
+                $debug['deleted_old_passport'] = true;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Profile updated successfully.',
+                'user' => $user->fresh(),
+                'debug' => $debug,
+            ], 200);
+        } catch (\Exception $e) {
+            foreach ([$newProfileImagePath, $newNationalIdPath, $newPassportPath] as $path) {
+                if ($path && Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+
+            Log::error('Profile update failed: ' . $e->getMessage());
+
+            $debug['exception'] = $e->getMessage();
+            $debug['updated'] = false;
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update profile.',
+                'debug' => $debug,
+            ], 500);
+        }
     }
+
+    //  دالة مساعدة لتطبيع مسارات الملفات المخزنة
+    private function normalizeStoragePath(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        $path = ltrim($path, '/');
+
+        // حذف أي بادئات يمكن أن تمنع Storage::disk('public') من إيجاد الملف
+        return preg_replace('#^(?:storage/app/public/|storage/app/|storage/|public/)#', '', $path);
+    }
+    //_______________________________________________________________________ 
+    //_______________________________________________________________________
+    // over this function is done
     public function addBalanceToUser(Request $request, $userId)
     {
         $admin = Auth::user();
@@ -246,6 +316,7 @@ class UserController extends Controller
         }
 
         // إضافة الرصيد
+        /** @var \App\Models\User $user */
         $user->addBalance($request->currency, $request->amount);
 
         return response()->json([

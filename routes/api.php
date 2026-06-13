@@ -24,7 +24,7 @@ Route::post('/signin', [UserController::class, 'signIn']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/signout', [UserController::class, 'signOut']);
     Route::get('/userprofile', [UserController::class, 'profile']);
-    Route::put('/userprofile/update', [UserController::class, 'updateProfile']);
+    Route::post('/userprofile/update', [UserController::class, 'updateProfile']);
     //Amer
     //status management for users by admin and sub_admin    
     Route::post('/approveUser/{id}', [UserController::class, 'approveUser']);
@@ -45,18 +45,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/recent-donations', [DashboardController::class, 'recentDonations']);
     Route::get('/dashboard/top-campaigns', [DashboardController::class, 'topCampaigns']);
     //
-    
+
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+
+
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::post('storepatient', [RequestController::class, 'storePatientRequest']);
+        Route::post('storeorphan', [RequestController::class, 'storeOrphanRequest']);
+        Route::post('storeschool', [RequestController::class, 'storeSchoolRequest']);
+        Route::post('storeuniversity', [RequestController::class, 'storeUniversityRequest']);
+    });
+
     
-
-
-
-    Route::post('/requests/patient', [RequestController::class, 'storePatientRequest']);
-    Route::post('/requests/orphan', [RequestController::class, 'storeOrphanRequest']);
-    Route::post('/requests/school', [RequestController::class, 'storeSchoolRequest']);
-    Route::post('/requests/university', [RequestController::class, 'storeUniversityRequest']);
 
 
     Route::get('/check', function () {

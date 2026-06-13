@@ -70,7 +70,11 @@ class User extends Authenticatable
 
     public function addBalance($currency, $amount)
     {
+        if ($amount <= 0) {
+            return false; // تجاهل المبالغ السالبة أو الصفرية
+        }
         $balances = $this->normalizeBalances();
+
 
         $balances[$currency] = ($balances[$currency] ?? 0) + $amount;
 

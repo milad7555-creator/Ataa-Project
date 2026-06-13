@@ -3,9 +3,27 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class SignUpRequest extends FormRequest
 {
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $phone = $this->input('phone');
+        $email = $this->input('email');
+
+        $normalizedPhone = $phone === null ? null : trim($phone);
+        $normalizedEmail = $email === null ? null : trim($email);
+
+        $this->merge([
+            'phone' => $normalizedPhone === '' ? null : $normalizedPhone,
+            'email' => $normalizedEmail === '' ? null : $normalizedEmail,
+        ]);
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -24,10 +42,19 @@ class SignUpRequest extends FormRequest
             'last_name'     => 'required|string|regex:/^[^\d\s,]+$/',
 
             // phone must be string, not integer
-            'phone' => 'nullable|required_without:email|regex:/^[0-9]+$/|unique:users,phone',
+            'phone' => [
+                'nullable',
+                'required_without:email',
+                'regex:/^[0-9]+$/',
+                Rule::unique('users', 'phone')->whereNotNull('phone'),
+            ],
 
-
-            'email'         => 'nullable|required_without:phone|email|unique:users,email',
+            'email' => [
+                'nullable',
+                'required_without:phone',
+                'email',
+                Rule::unique('users', 'email')->whereNotNull('email'),
+            ],
 
             'password'      => 'required|string|min:8|confirmed',
 

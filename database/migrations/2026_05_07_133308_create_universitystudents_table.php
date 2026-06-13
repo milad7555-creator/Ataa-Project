@@ -17,7 +17,8 @@ return new class extends Migration
 
             $table->string('academic_year');        
             $table->string('university_id_photo');  
-            $table->string('support_type');         
+            $table->string('support_type');     
+            $table->decimal('required_amount', 10, 2)->default(0);    
 
             $table->timestamps();
         });

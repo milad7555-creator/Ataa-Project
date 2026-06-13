@@ -15,10 +15,10 @@ return new class extends Migration
     $table->id();
 
     $table->string('full_name');
-    $table->string('mother_name'); // مهم جداً للتمييز
-    $table->string('address')->nullable();
+    $table->string('address')->nullable(); 
     $table->string('email')->nullable();
     $table->string('phone')->nullable();
+    $table->string('personal_picture')->nullable();
 
     $table->timestamps();
 });

@@ -17,8 +17,8 @@ return new class extends Migration
             $table->date('date_of_birth')->nullable();
 
             // تسجيل الدخول
-            $table->string('email')->nullable()->unique();
-            $table->string('phone')->nullable()->unique();
+            $table->string('email')->nullable();
+            $table->string('phone')->nullable();
             $table->string('password');
 
             // بيانات إضافية

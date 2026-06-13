@@ -16,7 +16,7 @@ return new class extends Migration
 
     // كل يتيم مرتبط بطلب واحد
     $table->foreignId('request_id')->constrained('requests')->onDelete('cascade');
-
+     $table->decimal('required_amount', 10, 2)->default(0);
     // ملفات
     $table->string('family_booklet');            // دفتر العائلة
     $table->string('father_death_certificate');  // شهادة وفاة الأب

@@ -12,15 +12,13 @@ return new class extends Migration
     public function up(): void
     {
        Schema::create('patients', function (Blueprint $table) {
-    $table->id();
+     $table->id();
 
     $table->foreignId('request_id')->constrained('requests')->onDelete('cascade');
-
-    $table->string('medical_condition');
-    $table->decimal('required_amount', 10, 2);
+    $table->string('national_id');//صوره
+    $table->decimal('required_amount', 10, 2)->default(0);
 
     $table->string('medical_report');     // ملف
-    $table->string('national_id_photo');  // ملف
 
     $table->timestamps();
 });

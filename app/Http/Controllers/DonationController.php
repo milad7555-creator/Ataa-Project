@@ -91,6 +91,7 @@ public function approveDonation($id)
     }
 
     // المتبرع الحقيقي
+    /** @var \App\Models\User $donorUser */
     $donorUser = $donation->donor->user;
 
     // تحقق من رصيد المتبرع
@@ -104,15 +105,17 @@ public function approveDonation($id)
 
     $target = $donation->donationable;
 
-    if ($donation->donationable_type === \App\Models\Campaign::class) {
+        if ($donation->donationable_type === \App\Models\Campaign::class) {
 
         // تبرع لحملة → المصاري للجمعية
+        /** @var \App\Models\User $receiver */
         $receiver = User::where('role', 'admin')->first();
 
     } else {
 
         // تبرع لحالة → المصاري لصاحب الحالة
         // Orphan / Patient / SchoolStudent / UniversityStudent
+        /** @var \App\Models\User $receiver */
         $receiver = $target->request->user;
     }
 
@@ -178,7 +181,7 @@ public function donate(DonateRequest $request)
         ], 401);
     }
 
-    // 🔥 Prevent admin from donating
+    // منع الأدمن من التبرع
     if ($user->role === 'admin') {
         return response()->json([
             'success' => false,
@@ -186,34 +189,50 @@ public function donate(DonateRequest $request)
         ], 403);
     }
 
-    // Validated data from DonateRequest
     $validated = $request->validated();
 
-    // Convert amount to USD
+    // تحويل العملة إلى دولار
     $amountInUSD = User::convertToUSD($validated['amount'], $validated['currency']);
 
     // ================================
-    // 🔥 Determine donation target
+    // 🔥 تحديد الهدف
     // ================================
 
     if ($validated['type'] === 'campaign') {
 
-        // Donation to a campaign
+        // التبرع لحملة
         $target = Campaign::findOrFail($validated['id']);
+        $owner = $target->user; // صاحب الحملة
 
     } else {
 
-        // Donation to a beneficiary request (Patient, Orphan, Student…)
-        $target = RequestModel::findOrFail($validated['id']);
+        // التبرع لحالة (يتيم أو مريض)
+        $requestModel = RequestModel::findOrFail($validated['id']);
+
+        $target = match ($requestModel->request_type) {
+            'patient' => $requestModel->patient,
+            'orphan'  => $requestModel->orphan,
+            default   => null
+        };
+
+        if (!$target) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This request type does not support donations.'
+            ], 400);
+        }
+
+        /** @var \App\Models\User $owner */
+        $owner = $requestModel->user; // صاحب الحالة
     }
 
-    // Create donor record if not exists
+    // إنشاء donor إذا غير موجود
     $donor = $user->donor ?? Donor::create([
         'user_id' => $user->id,
         'anonymous' => false,
     ]);
 
-    // Create donation as pending
+    // إنشاء التبرع مباشرة كـ approved
     $donation = Donation::create([
         'donor_id' => $donor->id,
         'amount' => $amountInUSD,
@@ -222,12 +241,16 @@ public function donate(DonateRequest $request)
         'original_currency' => $validated['currency'],
         'donationable_type' => get_class($target),
         'donationable_id' => $target->id,
-        'status' => 'pending',
+        'status' => 'approved', // 🔥 مباشرة بدون موافقة أدمن
     ]);
+
+    // 🔥 إضافة الرصيد لصاحب الحملة أو صاحب الحالة
+    /** @var \App\Models\User $owner */
+    $owner->addBalance('USD', $amountInUSD);
 
     return response()->json([
         'success' => true,
-        'message' => 'Donation submitted and awaiting admin approval.',
+        'message' => 'Donation completed successfully.',
         'donation_id' => $donation->id
     ]);
 }
