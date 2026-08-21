@@ -1,10 +1,3 @@
-# Database ERD
-
-The following ERD reflects the current database schema in this project and follows the same table-centric layout style shown in your reference image.
-
-![Database ERD](database-erd.svg)
-
-```mermaid
 erDiagram
     USERS {
         bigint id PK
@@ -189,6 +182,3 @@ erDiagram
     USERS ||--o{ DISBURSEMENT_LOGS : disburses
     CAMPAIGNS ||--o{ DISBURSEMENT_LOGS : by_reference
     REQUESTS ||--o{ DISBURSEMENT_LOGS : by_reference
-```
-
-> Note: `donations` uses a polymorphic relation (`donationable_id`, `donationable_type`) and can target either `campaigns` or `requests`.

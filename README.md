@@ -63,3 +63,4 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 ## Project Database ERD
 
 See the database ERD here: [docs/database-erd.md](docs/database-erd.md)
+Direct image file (SVG): [docs/database-erd.svg](docs/database-erd.svg)
