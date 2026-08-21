@@ -1,0 +1,192 @@
+# Database ERD
+
+The following ERD reflects the current database schema in this project and follows the same table-centric layout style shown in your reference image.
+
+```mermaid
+erDiagram
+    USERS {
+        bigint id PK
+        varchar first_name
+        varchar last_name
+        varchar email
+        varchar phone
+        enum role
+        enum user_category
+        enum status
+        json balances
+    }
+
+    GOVERNORATES {
+        bigint id PK
+        varchar name
+    }
+
+    REGIONS {
+        bigint id PK
+        bigint governorate_id FK
+        varchar name
+    }
+
+    BENEFICIARIES {
+        bigint id PK
+        bigint governorate_id FK
+        bigint region_id FK
+        varchar full_name
+        varchar national_id
+        varchar email
+        varchar phone
+    }
+
+    REQUESTS {
+        bigint id PK
+        bigint user_id FK
+        bigint beneficiary_id FK
+        varchar request_type
+        enum status
+        text description
+        decimal required_amount
+        decimal amount_collected
+        enum status_request
+        boolean is_disbursed
+    }
+
+    PATIENTS {
+        bigint id PK
+        bigint request_id FK
+        varchar national_id_document
+        varchar medical_report
+    }
+
+    ORPHANS {
+        bigint id PK
+        bigint request_id FK
+        bigint sponsor_id FK
+        varchar family_booklet
+        varchar father_death_certificate
+        boolean is_sponsored
+        decimal sponsorship_amount
+    }
+
+    SCHOOL_STUDENTS {
+        bigint id PK
+        bigint request_id FK
+        varchar academic_grade
+        varchar school_name
+        varchar family_book_photo
+    }
+
+    UNIVERSITY_STUDENTS {
+        bigint id PK
+        bigint request_id FK
+        varchar academic_year
+        varchar university_id_photo
+        varchar support_type
+    }
+
+    CAMPAIGNS {
+        bigint id PK
+        bigint user_id FK
+        varchar title
+        text description
+        enum type
+        enum participation_type
+        decimal amount_needed
+        decimal amount_collected
+        int volunteers_needed
+        int volunteers_joined
+        enum status
+        boolean is_disbursed
+    }
+
+    CAMPAIGN_MEDIA {
+        bigint id PK
+        bigint campaign_id FK
+        varchar image
+    }
+
+    DONORS {
+        bigint id PK
+        bigint user_id FK
+        boolean anonymous
+    }
+
+    DONATIONS {
+        bigint id PK
+        bigint donor_id FK
+        bigint donationable_id
+        varchar donationable_type
+        decimal amount
+        decimal original_amount
+        varchar original_currency
+        varchar currency
+    }
+
+    VOLUNTEERS {
+        bigint id PK
+        bigint user_id FK
+        bigint governorate_id FK
+        varchar phone
+        enum gender
+        varchar occupation
+        json skills
+        enum status
+    }
+
+    VOLUNTEER_CAMPAIGN {
+        bigint id PK
+        bigint volunteer_id FK
+        bigint campaign_id FK
+        date assigned_date
+        enum status
+    }
+
+    VOLUNTEER_HOURS {
+        bigint id PK
+        bigint volunteer_id FK
+        bigint campaign_id FK
+        date date
+        decimal hours
+        text activity_description
+    }
+
+    DISBURSEMENT_LOGS {
+        bigint id PK
+        bigint admin_id FK
+        varchar type
+        bigint reference_id
+        decimal amount
+        varchar currency
+        varchar status
+    }
+
+    GOVERNORATES ||--o{ REGIONS : has
+    GOVERNORATES ||--o{ BENEFICIARIES : has
+    REGIONS ||--o{ BENEFICIARIES : has
+
+    USERS ||--o{ CAMPAIGNS : creates
+    CAMPAIGNS ||--o{ CAMPAIGN_MEDIA : includes
+
+    USERS ||--o| DONORS : donor_profile
+    DONORS ||--o{ DONATIONS : makes
+
+    USERS ||--o| VOLUNTEERS : volunteer_profile
+    GOVERNORATES ||--o{ VOLUNTEERS : located_in
+    VOLUNTEERS ||--o{ VOLUNTEER_CAMPAIGN : assigned
+    CAMPAIGNS ||--o{ VOLUNTEER_CAMPAIGN : receives
+    VOLUNTEERS ||--o{ VOLUNTEER_HOURS : logs
+    CAMPAIGNS ||--o{ VOLUNTEER_HOURS : tracks
+
+    USERS ||--o{ REQUESTS : submits
+    BENEFICIARIES ||--o{ REQUESTS : owns
+    REQUESTS ||--o| PATIENTS : patient_case
+    REQUESTS ||--o| ORPHANS : orphan_case
+    REQUESTS ||--o| SCHOOL_STUDENTS : school_case
+    REQUESTS ||--o| UNIVERSITY_STUDENTS : university_case
+    USERS ||--o{ ORPHANS : sponsors
+
+    USERS ||--o{ DISBURSEMENT_LOGS : disburses
+    CAMPAIGNS ||--o{ DISBURSEMENT_LOGS : by_reference
+    REQUESTS ||--o{ DISBURSEMENT_LOGS : by_reference
+```
+
+> Note: `donations` uses a polymorphic relation (`donationable_id`, `donationable_type`) and can target either `campaigns` or `requests`.
